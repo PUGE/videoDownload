@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 350px;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      color: #333;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      background: #f0f0f0;
+    }
+    .status.detected {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+    .status.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .video-info {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+    .video-info h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+    .video-info ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+    .quality-selector {
+      margin-bottom: 15px;
+    }
+    .quality-selector select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .download-btn {
+      width: 100%;
+      padding: 10px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .download-btn:hover {
+      background: #3367d6;
+    }
+    .download-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .progress-container {
+      margin-top: 10px;
+      display: none;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #4285f4;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+      text-align: center;
+    }
+    .view-list-btn {
+      width: 100%;
+      padding: 10px;
+      background: #f1f3f4;
+      color: #5f6368;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+
+    .view-list-btn:hover {
+      background: #e8f0fe;
+      color: #1a73e8;
+      border-color: #d2e3fc;
+    }
+
+    .view-list-btn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎬 HLS 视频下载器</h1>
+  </div>
+  
+  <div id="status" class="status">
+    正在检测页面中的视频...
+  </div>
+  
+  <div id="videoInfo" class="video-info" style="display: none;">
+    <h3>📹 检测到的视频</h3>
+    <ul id="videoDetails"></ul>
+  </div>
+  
+  <div id="qualitySelector" class="quality-selector" style="display: none;">
+    <select id="qualitySelect">
+      <option value="">选择视频质量...</option>
+    </select>
+  </div>
+  
+  <button id="downloadBtn" class="download-btn" disabled>开始下载</button>
+  <button id="viewListBtn" class="view-list-btn">
+    📋 查看下载列表
+  </button>
+  
+  <div id="progressContainer" class="progress-container">
+    <div class="progress-bar">
+      <div id="progressFill" class="progress-fill"></div>
+    </div>
+    <div id="progressText" class="progress-text">准备中...</div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
