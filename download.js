@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tasksContainer.innerHTML = filteredTasks.map(task => `
       <div class="task">
         <div class="task-header">
-          <div class="task-title">${task.videos[0]?.title || '未命名视频'}</div>
+          <div class="task-title" style="width:calc(100% - 60px)">${task.videos[0]?.title || '未命名视频'}</div>
           <div class="task-status status-${task.status}">${getStatusText(task.status)}</div>
         </div>
         
