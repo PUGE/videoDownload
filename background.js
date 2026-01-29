@@ -264,8 +264,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         videos: task.videos,
         quality: task.quality,
         status: task.status,
-        progress: task.progress,
+        progress: task.progress || { downloaded: 0, total: 0, failed: 0 },
         startTime: task.startTime,
+        endTime: task.endTime,
         error: task.error
       }));
       sendResponse({ tasks });
@@ -581,48 +582,6 @@ async function handleDownload(videos, quality, tabId) {
   }
 }
 
-// 从缓存合并片段
-async function mergeCachedSegments(cache, segmentCount, taskId) {
-  console.log(`开始从缓存合并 ${segmentCount} 个片段`);
-  
-  const buffers = [];
-  let totalSize = 0;
-  
-  for (let i = 0; i < segmentCount; i++) {
-    try {
-      const response = await cache.match(`segment-${i}`);
-      if (response) {
-        const data = await response.arrayBuffer();
-        buffers.push(data);
-        totalSize += data.byteLength;
-        
-        console.log(`加载片段 ${i + 1}/${segmentCount}: ${(data.byteLength / 1024 / 1024).toFixed(2)} MB`);
-        
-        // 更新进度（可选）
-        const progress = downloadProgress.get(taskId);
-        if (progress) {
-          progress.merged = i + 1;
-          downloadProgress.set(taskId, progress);
-        }
-      }
-    } catch (error) {
-      console.error(`加载缓存片段 ${i} 失败:`, error);
-    }
-  }
-  
-  console.log(`总大小: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-  
-  // 合并所有缓冲区
-  const merged = new Uint8Array(totalSize);
-  let offset = 0;
-  
-  for (const buffer of buffers) {
-    merged.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  }
-  
-  return merged.buffer;
-}
 
 // 保存大文件 - 优化版
 async function saveLargeFile(data, fileName, tabId, taskId) {
@@ -633,11 +592,8 @@ async function saveLargeFile(data, fileName, tabId, taskId) {
   if (fileSize < 50 * 1024 * 1024) { // 小于50MB，直接下载
     return saveSmallFile(data, fileName);
   } 
-  else if (fileSize < 500 * 1024 * 1024) { // 50MB-500MB，使用分块下载
+  else { // 50MB-500MB，使用分块下载
     return saveMediumFile(data, fileName, tabId, taskId);
-  }
-  else { // 大于500MB，使用文件流
-    return saveLargeFileStream(data, fileName, tabId, taskId);
   }
 }
 
@@ -718,36 +674,6 @@ async function saveMediumFile(data, fileName, tabId, taskId) {
   }
   
   return taskId;
-}
-
-// 使用 chrome.downloads.download API
-async function saveViaDownloadsAPI(data, fileName) {
-  return new Promise((resolve, reject) => {
-    // 创建 Blob
-    const blob = new Blob([data], { type: 'video/mp4' });
-    const reader = new FileReader();
-    
-    reader.onloadend = function() {
-      const base64Data = reader.result.split(',')[1];
-      const dataUrl = `data:video/mp4;base64,${base64Data}`;
-      
-      chrome.downloads.download({
-        url: dataUrl,
-        filename: fileName,
-        saveAs: true
-      }, (downloadId) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          console.log('下载已开始，ID:', downloadId);
-          resolve(downloadId);
-        }
-      });
-    };
-    
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 // 使用分块存储方案
@@ -846,34 +772,7 @@ function parseMediaPlaylist(content, baseUrl) {
   return segments;
 }
 
-// 发送文件给 content script
-async function sendFileToContentScript(data, fileName, mimeType, tabId) {
-  try {
-    // 发送初始化消息
-    chrome.tabs.sendMessage(tabId, {
-      action: 'initDownload',
-      taskId: Date.now().toString(),
-      fileName: fileName,
-      mimeType: mimeType
-    });
-    
-    // 等待一下
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // 发送数据
-    chrome.tabs.sendMessage(tabId, {
-      action: 'downloadFile',
-      fileName: fileName,
-      data: Array.from(new Uint8Array(data)),
-      mimeType: mimeType
-    });
-    
-  } catch (error) {
-    console.error('发送文件失败:', error);
-  }
-}
 
-// 正确的解析 m3u8 函数
 // 修改 parseM3U8 函数
 async function parseM3U8(content, baseUrl) {
   const segments = [];
@@ -1016,38 +915,7 @@ function resolveUrl(url, baseUrl) {
   }
 }
 
-async function mergeTSFiles(tsFiles) {
-  console.log(`开始合并 ${tsFiles.length} 个文件`);
-  
-  // 按索引排序
-  tsFiles.sort((a, b) => a.index - b.index);
-  
-  // 计算总大小
-  const totalSize = tsFiles.reduce((sum, file) => sum + file.data.byteLength, 0);
-  console.log(`总大小: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-  
-  // 创建合并的 ArrayBuffer
-  const merged = new Uint8Array(totalSize);
-  let offset = 0;
-  
-  for (const file of tsFiles) {
-    const data = new Uint8Array(file.data);
-    merged.set(data, offset);
-    offset += data.length;
-  }
-  
-  // 检查是否是有效的视频文件
-  const magicBytes = merged.slice(0, 4);
-  const isMP4 = magicBytes[0] === 0x00 && magicBytes[1] === 0x00 && 
-                magicBytes[2] === 0x00 && (magicBytes[3] === 0x18 || magicBytes[3] === 0x20);
-  
-  if (!isMP4) {
-    console.warn('合并后的文件可能不是有效的 MP4 格式');
-    // 可以尝试添加 MP4 头
-  }
-  
-  return merged.buffer;
-}
+
 
 // 下载单个 ts 片段
 async function downloadSegment(url) {
@@ -1082,76 +950,7 @@ async function downloadSegment(url) {
   }
 }
 
-// 合并 ts 缓冲区
-function mergeTSBuffers(buffers) {
-  console.log(`合并 ${buffers.length} 个缓冲区`);
-  
-  // 计算总大小
-  const totalSize = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
-  console.log(`总视频大小: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
-  
-  // 创建合并的缓冲区
-  const merged = new Uint8Array(totalSize);
-  let offset = 0;
-  
-  for (const buffer of buffers) {
-    merged.set(new Uint8Array(buffer), offset);
-    offset += buffer.byteLength;
-  }
-  
-  return merged.buffer;
-}
 
-// 保存并触发下载
-async function saveAndTriggerDownload(data, fileName, tabId, taskId) {
-  try {
-    // 1. 保存到 storage（分块保存，避免过大）
-    const chunkSize = 1024 * 1024; // 1MB
-    const dataArray = new Uint8Array(data);
-    const chunks = [];
-    
-    for (let i = 0; i < dataArray.length; i += chunkSize) {
-      const chunk = dataArray.slice(i, i + chunkSize);
-      chunks.push(Array.from(chunk));
-    }
-    
-    // 保存到临时存储
-    await chrome.storage.local.set({
-      [`video_${taskId}`]: {
-        fileName: fileName,
-        chunks: chunks,
-        totalSize: data.byteLength,
-        mimeType: 'video/mp4'
-      }
-    });
-    
-    console.log('视频数据已保存到 storage');
-    
-    // 2. 发送消息到 content script 触发下载
-    chrome.tabs.sendMessage(tabId, {
-      action: 'downloadVideo',
-      taskId: taskId,
-      fileName: fileName,
-      totalSize: data.byteLength,
-      totalChunks: chunks.length
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('发送消息失败:', chrome.runtime.lastError);
-      } else if (response && response.success) {
-        console.log('下载触发成功');
-        
-        // 清理存储（延迟执行）
-        setTimeout(() => {
-          chrome.storage.local.remove([`video_${taskId}`]);
-        }, 30000);
-      }
-    });
-    
-  } catch (error) {
-    console.error('保存视频失败:', error);
-    throw error;
-  }
-}
 
 // 生成文件名
 function generateFileName(title, quality) {
@@ -1178,62 +977,6 @@ function cancelDownload(taskId) {
 }
 
 
-// background.js - Service Worker 直接处理
-async function handleLargeVideoDownload(videos, quality) {
-  // 创建缓存
-  const cache = await caches.open('hls-video-cache');
-  
-  // 解析 M3U8
-  const m3u8Url = videos[0].url;
-  const response = await fetch(m3u8Url);
-  const m3u8Content = await response.text();
-  const segments = await parseM3U8(m3u8Content, m3u8Url);
-  
-  // 下载所有片段到缓存
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i];
-    
-    try {
-      const segmentResponse = await fetch(segment.url);
-      await cache.put(`segment-${i}`, segmentResponse.clone());
-      
-      console.log(`片段 ${i + 1}/${segments.length} 已缓存`);
-    } catch (error) {
-      console.error(`缓存片段 ${i} 失败:`, error);
-    }
-  }
-  
-  // 从缓存读取并合并
-  const videoData = await mergeCachedSegments(cache, segments.length);
-  
-  // 保存到本地文件系统（使用 File System Access API）
-  await saveToFileSystem(videoData, videos[0].title, quality);
-}
-
-async function saveToFileSystem(data, title, quality) {
-  // 使用 File System Access API（需要用户授权）
-  try {
-    const opts = {
-      suggestedName: `${title}_${quality}.mp4`,
-      types: [{
-        description: 'MP4 Video',
-        accept: { 'video/mp4': ['.mp4'] }
-      }]
-    };
-    
-    // 在 content script 中请求文件保存权限
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: 'saveLargeFile',
-        fileName: `${title}_${quality}.mp4`,
-        dataSize: data.byteLength
-      });
-    });
-    
-  } catch (error) {
-    console.error('保存文件失败:', error);
-  }
-}
 
 // 监听下载事件
 chrome.downloads.onChanged.addListener((delta) => {

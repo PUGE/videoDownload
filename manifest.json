@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "HLS 视频下载器",
+  "name": "视频下载助手",
   "version": "1.0.0",
-  "description": "支持P站等HLS网站视频下载，有BUG联系mail@puge.org",
+  "description": "支持youtube，P站等网站视频下载，有BUG联系mail@puge.org",
   "permissions": [
     "activeTab",
     "storage",
     "downloads",
-    "scripting",
     "unlimitedStorage"
   ],
   "host_permissions": [

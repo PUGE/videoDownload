@@ -14,6 +14,14 @@
       color: #333;
       border-bottom: 2px solid #4285f4;
       padding-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 span {
+      font-size: 14px;
+      color: #666;
+      font-weight: normal;
     }
     .task {
       background: #f8f9fa;
@@ -31,39 +39,101 @@
     .task-title {
       font-weight: bold;
       color: #333;
+      font-size: 16px;
     }
     .task-status {
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 12px;
+      font-weight: bold;
     }
     .status-pending { background: #fff3cd; color: #856404; }
     .status-downloading { background: #d1ecf1; color: #0c5460; }
     .status-merging { background: #d4edda; color: #155724; }
+    .status-saving { background: #cce5ff; color: #004085; }
     .status-completed { background: #d1e7dd; color: #0f5132; }
     .status-error { background: #f8d7da; color: #721c24; }
     .status-cancelled { background: #e2e3e5; color: #383d41; }
-    .progress-bar {
-      height: 6px;
-      background: #eee;
-      border-radius: 3px;
+    
+    /* 进度条样式 */
+    .progress-container {
       margin: 10px 0;
+    }
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .progress-bar {
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
       overflow: hidden;
+      margin-bottom: 5px;
     }
     .progress-fill {
       height: 100%;
       background: #4285f4;
       transition: width 0.3s;
     }
-    .task-info {
-      font-size: 12px;
-      color: #666;
+    .sub-progress {
+      font-size: 11px;
+      color: #888;
+      text-align: right;
+    }
+    
+    /* 下载信息 */
+    .download-info {
+      background: white;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 10px 0;
+      border-left: 3px solid #4285f4;
+    }
+    .info-row {
       display: flex;
       justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 12px;
     }
+    .info-label {
+      color: #666;
+    }
+    .info-value {
+      color: #333;
+      font-weight: bold;
+    }
+    .speed {
+      color: #28a745 !important;
+    }
+    .failed {
+      color: #dc3545 !important;
+    }
+    
+    /* 错误信息 */
+    .error-box {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #721c24;
+    }
+    .error-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    /* 操作按钮 */
     .task-actions {
       margin-top: 10px;
       text-align: right;
+      display: flex;
+      gap: 5px;
+      justify-content: flex-end;
     }
     .btn {
       padding: 6px 12px;
@@ -71,25 +141,79 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
-      margin-left: 5px;
+      font-weight: 500;
     }
     .btn-cancel {
       background: #dc3545;
       color: white;
     }
+    .btn-cancel:hover {
+      background: #c82333;
+    }
     .btn-retry {
       background: #28a745;
       color: white;
     }
+    .btn-retry:hover {
+      background: #218838;
+    }
+    .btn-manage {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-manage:hover {
+      background: #5a6268;
+    }
+    
+    /* 空状态 */
     .empty-state {
       text-align: center;
       padding: 40px;
       color: #999;
     }
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    
+    /* 过滤器 */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .filter-btn.active {
+      background: #4285f4;
+      color: white;
+      border-color: #4285f4;
+    }
   </style>
 </head>
 <body>
-  <h1>📥 HLS 下载任务</h1>
+  <h1>
+    📥 HLS 下载管理器
+    <span id="taskCount">(0个任务)</span>
+  </h1>
+  
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterTasks('all')">全部</button>
+    <button class="filter-btn" onclick="filterTasks('active')">进行中</button>
+    <button class="filter-btn" onclick="filterTasks('completed')">已完成</button>
+    <button class="filter-btn" onclick="filterTasks('error')">失败</button>
+  </div>
+  
   <div id="tasksContainer"></div>
   
   <script src="download.js"></script>
